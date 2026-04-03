@@ -6,41 +6,91 @@
     <title>Merkei Mart | Premium eSIM Store</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: white; }
+        body { background-color: #0f172a; color: white; font-family: sans-serif; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div class="glass max-w-md w-full p-8 rounded-3xl shadow-2xl">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold tracking-tight text-blue-400">MERKEI MART</h1>
-            <p class="text-slate-400 mt-2">Instant eSIM Activation via SMS</p>
-        </div>
-
-        <div class="space-y-6">
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-2">Select Region</label>
-                <select class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option>USA - Unlimited SMS ($5.00)</option>
-                    <option>UK - Standard ($4.00)</option>
-                </select>
+        <div id="setup-view">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold tracking-tight text-blue-400">MERKEI MART</h1>
+                <p class="text-slate-400 mt-2">Instant eSIM Activation via SMS</p>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-2">Your Phone (For SMS Delivery)</label>
-                <input type="text" placeholder="+1 234 567 890" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Select Region</label>
+                    <select id="region" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-white">
+                        <option value="USA">USA - Unlimited SMS ($5.00)</option>
+                        <option value="UK">UK - Standard ($4.00)</option>
+                    </select>
+                </div>
 
-            <button class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20">
-                Buy with Binance Pay
-            </button>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Your Phone (For SMS Delivery)</label>
+                    <input type="text" id="phone" placeholder="+94 77 123 4567" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-white">
+                </div>
+
+                <button onclick="payNow()" id="buyBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20">
+                    Buy with Binance Pay
+                </button>
+            </div>
         </div>
 
-        <p class="text-center text-xs text-slate-500 mt-8 italic">
-            Privacy First. No registration required.
-        </p>
+        <div id="payment-view" class="hidden text-center space-y-6 py-4">
+            <h2 class="text-xl font-bold text-blue-400">Scan to Pay</h2>
+            <div class="bg-white p-4 inline-block rounded-2xl shadow-inner">
+                <img id="qr-img" src="" alt="QR Code" class="mx-auto w-48 h-48">
+            </div>
+            <p class="text-sm text-slate-400 px-4">Scan this QR with your Binance App to complete the payment. Your eSIM will arrive via SMS.</p>
+            <button onclick="window.location.reload()" class="text-xs text-slate-500 hover:text-white transition-colors underline">Cancel Order</button>
+        </div>
+
+        <p class="text-center text-xs text-slate-500 mt-8 italic">Privacy First. No registration required.</p>
     </div>
 
+    <script>
+        async function payNow() {
+            const phone = document.getElementById('phone').value;
+            const region = document.getElementById('region').value;
+            const btn = document.getElementById('buyBtn');
+
+            if(!phone || phone.length < 8) { 
+                alert("Please enter a valid phone number"); 
+                return; 
+            }
+
+            btn.innerText = "Connecting to Secure API...";
+            btn.disabled = true;
+
+            try {
+                // ඔයාගේ IP එක මෙතනට දැම්මා
+                const response = await fetch('http://173.249.28.120:8000/create-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone_number: phone, region: region })
+                });
+
+                const data = await response.json();
+                
+                if(data.status === "success") {
+                    document.getElementById('setup-view').classList.add('hidden');
+                    document.getElementById('payment-view').classList.remove('hidden');
+                    document.getElementById('qr-img').src = data.qr_code_url;
+                } else {
+                    alert("Error: " + data.message);
+                    btn.innerText = "Buy with Binance Pay";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Cannot connect to the server. Make sure your VM backend is running and Port 8000 is open.");
+                btn.innerText = "Buy with Binance Pay";
+                btn.disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>
