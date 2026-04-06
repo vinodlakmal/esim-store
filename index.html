@@ -8,6 +8,7 @@
     <style>
         body { background-color: #0f172a; color: white; font-family: sans-serif; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .qr-border { border: 4px solid white; border-radius: 1rem; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -15,8 +16,8 @@
     <div class="glass max-w-md w-full p-8 rounded-3xl shadow-2xl">
         <div id="setup-view">
             <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold tracking-tight text-blue-400">Miracle</h1>
-                <p class="text-slate-400 mt-2">Instant eSIM Activation via SMS</p>
+                <h1 class="text-4xl font-black tracking-tighter text-blue-400">MIRACLE</h1>
+                <p class="text-slate-400 mt-2 text-sm uppercase tracking-widest">Global eSIM Activation</p>
             </div>
 
             <div class="space-y-6">
@@ -38,69 +39,81 @@
 
                 <p id="error-msg" class="text-red-400 text-sm text-center font-medium min-h-[20px]"></p>
 
-                <button onclick="payNow()" id="buyBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20">
-                    Buy with Binance Pay
+                <button onclick="showPayment()" id="buyBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 uppercase">
+                    Buy with USDT
                 </button>
             </div>
         </div>
 
-        <div id="payment-view" class="hidden text-center space-y-6 py-4">
-            <h2 class="text-xl font-bold text-blue-400">Scan to Pay</h2>
-            <div class="bg-white p-4 inline-block rounded-2xl shadow-inner">
-                <img id="qr-img" src="" alt="QR Code" class="mx-auto w-48 h-48">
+        <div id="payment-view" class="hidden text-center space-y-5">
+            <h2 class="text-xl font-bold text-blue-400">Complete Payment</h2>
+            <p class="text-xs text-yellow-500 font-bold uppercase">Network: TRON (TRC20)</p>
+            
+            <div class="bg-white p-3 inline-block qr-border shadow-inner">
+                <img id="qr-img" src="qr-code.png" alt="Wallet QR" class="mx-auto w-44 h-44">
             </div>
-            <p class="text-sm text-slate-400 px-4">Scan this QR with your Binance App to complete the payment. Your eSIM will arrive via SMS.</p>
-            <button onclick="window.location.reload()" class="text-xs text-slate-500 hover:text-white transition-colors underline">Cancel Order</button>
-        </div>
 
-        <p class="text-center text-xs text-slate-500 mt-8 italic">Privacy First. No registration required.</p>
+            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                <p class="text-[10px] text-slate-500 mb-1 uppercase font-bold">USDT Address (TRC20)</p>
+                <code id="address-text" class="text-[11px] text-blue-300 break-all">TEmhVnX4dvNM2zmxgsJ5KT1G31izLe5KqG</code>
+                <button onclick="copyAddress()" class="block mx-auto mt-2 text-[10px] bg-slate-700 px-3 py-1 rounded hover:bg-slate-600 uppercase">Copy Address</button>
+            </div>
+
+            <p class="text-[11px] text-slate-400 px-4">Pay exactly the amount. After sending, click the button below. We will verify and send your eSIM via SMS.</p>
+            
+            <button id="notifyBtn" onclick="notifyPaid()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-all uppercase">
+                I Have Paid
+            </button>
+
+            <button onclick="window.location.reload()" class="text-xs text-slate-500 hover:text-white transition-colors underline">Back to Order</button>
+        </div>
     </div>
 
     <script>
-        async function payNow() {
+        const API_URL = "https://esim.merkeisolutions.com"; // ටනල් එකේ ලින්ක් එක මෙතනට දාන්න
+
+        function copyAddress() {
+            const addr = document.getElementById('address-text').innerText;
+            navigator.clipboard.writeText(addr);
+            alert("Wallet Address Copied!");
+        }
+
+        function showPayment() {
             const phone = document.getElementById('phone').value;
-            const region = document.getElementById('region').value;
-            const btn = document.getElementById('buyBtn');
             const errorMsg = document.getElementById('error-msg');
-
-            errorMsg.innerText = ""; // පරණ Error මකනවා
-
-            // අංක 10කට වඩා අඩු නම්
             if(phone.length < 10) { 
-                errorMsg.innerText = "⚠️ Please enter at least 10 digits.";
+                errorMsg.innerText = "⚠️ Please enter a valid phone number.";
                 return; 
             }
+            document.getElementById('setup-view').classList.add('hidden');
+            document.getElementById('payment-view').classList.remove('hidden');
+        }
 
-            btn.innerText = "Connecting...";
+        async function notifyPaid() {
+            const phone = document.getElementById('phone').value;
+            const region = document.getElementById('region').value;
+            const btn = document.getElementById('notifyBtn');
+
+            btn.innerText = "Notifying Admin...";
             btn.disabled = true;
 
             try {
-                // ඔයාගේ IP එකට කතා කරනවා
-                const response = await fetch('http://173.249.28.120:8000/create-order', {
+                const response = await fetch(`${API_URL}/notify-payment`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone_number: phone, region: region })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Server connection error');
-                }
-
-                const data = await response.json();
-                
-                if(data.status === "success") {
-                    document.getElementById('setup-view').classList.add('hidden');
-                    document.getElementById('payment-view').classList.remove('hidden');
-                    document.getElementById('qr-img').src = data.qr_code_url;
+                if (response.ok) {
+                    alert("Success! David will check your payment and send the eSIM to " + phone + " shortly.");
+                    window.location.reload();
                 } else {
-                    errorMsg.innerText = "⚠️ Backend Error: " + data.message;
+                    alert("Server error. Please try again.");
                 }
             } catch (error) {
-                console.error(error);
-                // Insecure Content ප්‍රශ්නය ආවොත් මෙතනින් පෙන්වනවා
-                errorMsg.innerHTML = "🚨 Connection Blocked! <br> Browser Security: Please click the lock icon in the address bar, go to Site Settings, and Allow 'Insecure Content'.";
+                alert("Connection failed. Check your internet.");
             } finally {
-                btn.innerText = "Buy with Binance Pay";
+                btn.innerText = "I Have Paid";
                 btn.disabled = false;
             }
         }
